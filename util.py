@@ -4,6 +4,15 @@ class Node():
         self.parent = parent
         self.action = action
 
+    def get_state(self):
+        return self.state
+
+    def get_parent(self):
+        return self.parent
+
+    def get_action(self):
+        return self.action
+
 
 class StackFrontier():
     def __init__(self):

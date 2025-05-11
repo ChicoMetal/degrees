@@ -1,6 +1,7 @@
 import csv
 import sys
 
+import copy
 from util import Node, StackFrontier, QueueFrontier
 
 # Maps names to a set of corresponding person_ids
@@ -12,11 +13,14 @@ people = {}
 # Maps movie_ids to a dictionary of: title, year, stars (a set of person_ids)
 movies = {}
 
+# Path checked
+known_path = []
 
 def load_data(directory):
     """
     Load data from CSV files into memory.
     """
+
     # Load people
     with open(f"{directory}/people.csv", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -24,6 +28,7 @@ def load_data(directory):
             people[row["id"]] = {
                 "name": row["name"],
                 "birth": row["birth"],
+                "id": row["id"],
                 "movies": set()
             }
             if row["name"].lower() not in names:
@@ -71,17 +76,13 @@ def main():
 
     path = shortest_path(source, target)
 
-    if path is None:
-        print("Not connected.")
-    else:
-        degrees = len(path)
-        print(f"{degrees} degrees of separation.")
-        path = [(None, source)] + path
-        for i in range(degrees):
-            person1 = people[path[i][1]]["name"]
-            person2 = people[path[i + 1][1]]["name"]
-            movie = movies[path[i + 1][0]]["title"]
-            print(f"{i + 1}: {person1} and {person2} starred in {movie}")
+    print("Path: ", path)
+
+
+def check_target(source):
+    stack_frontier = StackFrontier()
+    for neighbor in neighbors_for_person(source):
+        stack_frontier.add(neighbor)
 
 
 def shortest_path(source, target):
@@ -91,24 +92,60 @@ def shortest_path(source, target):
 
     If no possible path, returns None.
     """
-    source_info = people[source]
-    target_info = people[target]
+    node = bfs(source, target)
 
-    print('Source info', source, source_info)
-    print('Target info', target, target_info)
-    for source_movie in source_info['movies']:
-        for target_movie in target_info['movies']:
-            if target_movie == source_movie:
-                print('They are related in the movie: ', target_movie)
-                print('Movie info: ', movies[target_movie])
+    path = []
+    while(True):
+        if node is None or node.get_parent() is None:
+            break
 
-    # queueFrontier = QueueFrontier()
-    # stackFrontier = StackFrontier()
-    # for neighbor in neighbors_for_person(source):
-    #     stackFrontier.add(neighbor)
-    # queueFrontier.add(stackFrontier)
-    # print('queueFrontier', queueFrontier.remove().remove())
-    raise NotImplementedError
+        path.insert(0, (get_action(node), get_person_name(node)))
+        node = copy.deepcopy(node.get_parent())
+
+    return path
+
+
+def bfs(source, target):
+    """Search source movies and look for target adding the people related with the source in the frontier"""
+    source_info  = people[source]
+
+    lvl = 0
+    # stack = StackFrontier()
+    stack = QueueFrontier()
+    source_info["lvl"] = lvl
+    source_info["id"] = source
+
+    source_node = Node(source_info, None, None)
+    stack.add(source_node)
+
+    while(True):
+
+        if stack.empty():
+            return None
+
+        node_from_stack = stack.remove()
+
+        person_id = get_person_id(node_from_stack)
+
+        if person_id == target:
+            return node_from_stack
+
+        neighbors = neighbors_for_person(person_id)
+
+        node_parent = copy.deepcopy(node_from_stack)
+        for movie, person in neighbors:
+            if person == person_id:
+                continue
+
+            new_state = copy.deepcopy(people[person])
+            new_state["lvl"] = lvl # assign values to the state this way cause some referential issues
+            new_node = Node(new_state, node_parent, movie)
+
+            if not verify_known_path(node_from_stack, new_node):
+                add_known_path(node_from_stack, new_node)
+                stack.add(new_node)
+
+        lvl += 1
 
 
 def person_id_for_name(name):
@@ -148,6 +185,33 @@ def neighbors_for_person(person_id):
         for person_id in movies[movie_id]["stars"]:
             neighbors.add((movie_id, person_id))
     return neighbors
+
+
+def verify_known_path(node_origin, node_destiny):
+    """Verify if the path is known"""
+    path = get_person_id(node_origin) + ":" + get_person_id(node_destiny)
+    inverse_path = get_person_id(node_destiny) + ":" + get_person_id(node_origin)
+    return path in known_path or inverse_path in known_path
+
+
+def add_known_path(node_origin, node_destiny):
+    """Add a path to the known paths"""
+    path = get_person_id(node_origin) + ":" + get_person_id(node_destiny)
+    inverse_path = get_person_id(node_destiny) + ":" + get_person_id(node_origin)
+    known_path.append(path)
+    known_path.append(inverse_path)
+
+def get_person_id(node):
+    """Return a person ID"""
+    return node.get_state()["id"]
+
+def get_person_name(node):
+    """Get person name"""
+    return node.get_state()["name"]
+
+def get_action(node):
+    """Return the action"""
+    return node.get_action()
 
 
 if __name__ == "__main__":
