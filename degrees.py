@@ -94,6 +94,9 @@ def shortest_path(source, target):
     """
     node = bfs(source, target)
 
+    if node is None:
+        return None
+
     path = []
     while(True):
         if node is None or node.get_parent() is None:
@@ -140,6 +143,9 @@ def bfs(source, target):
             new_state = copy.deepcopy(people[person])
             new_state["lvl"] = lvl # assign values to the state this way cause some referential issues
             new_node = Node(new_state, node_parent, movie)
+
+            if person == target:
+                return new_node
 
             if not verify_known_path(node_from_stack, new_node):
                 add_known_path(node_from_stack, new_node)
