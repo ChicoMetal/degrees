@@ -102,7 +102,7 @@ def shortest_path(source, target):
         if node is None or node.get_parent() is None:
             break
 
-        path.insert(0, (get_action(node), get_person_name(node)))
+        path.insert(0, (get_action(node), get_person_id(node)))
         node = copy.deepcopy(node.get_parent())
 
     return path
